@@ -142,3 +142,87 @@ describe('Shopping List', function() {
       });
   });
 });
+
+describe('Recipes', function(){
+  before(function(){
+    return runServer();
+  });
+
+  after(function(){
+    return closeServer();
+  });
+
+  it('should list recipes on GET', function(){
+    return chai.request(app)
+
+    .get('/recipes')
+    .then(function(res) {
+      res.should.have.status(200);
+      res.should.be.json;
+      res.body.should.be.a('array')
+      res.body.length.should.be.at.least(1)
+
+      const expectedRecipe = ['name', 'id', 'ingredients']
+      res.body.forEach(function(item){
+        item.should.be.a('object');
+        item.should.include.keys(expectedRecipe);
+      });
+    });
+  });
+
+  it('should create a new recipe on POST', function(){
+    const newItem = {name: 'cake', ingredients: ['flour', 'sugar', 'eggs']};
+
+    return chai.request(app)
+      .post('/recipes')
+      .send(newItem)
+      .then(function(res){
+      res.should.have.status(201);
+      res.should.be.json;
+      res.body.should.be.a('object');
+      res.body.id.should.not.be.null;
+      res.body.should.include.keys('name', 'id', 'ingredients');
+      res.body.should.deep.equal(Object.assign(newItem, {id: res.body.id}));
+    })
+  })
+
+  it('should delete a recipe on DELETE', function(){
+    return chai.request(app)
+      .get('/recipes')
+      .then(function(res){
+      return chai.request(app)
+        .delete(`/recipes/${res.body[0].id}`);
+    })
+    .then(function(res){
+      res.should.have.status(204);
+    });
+  });
+
+  // test strategy:
+  //  1. initialize some update data (we won't have an `id` yet)
+  //  2. make a GET request so we can get an item to update
+  //  3. add the `id` to `updateData`
+  //  4. Make a PUT request with `updateData`
+  //  5. Inspect the response object to ensure it
+  //  has right status code and that we get back an updated
+  //  item with the right data in it.
+  it('should update a recipe on PUT', function(){
+    const updatedData = {name: "cupcakes", ingredients:['eggs', 'flour', 'sugar']};
+
+    return chai.request(app)
+    .get('/recipes')
+    .then(function(res){
+      updatedData.id = res.body[0].id;
+
+      return chai.request(app)
+        .put(`/recipes/${updatedData.id}`)
+        .send(updatedData)
+    })
+    .then(function(res){
+      res.body.should.be.a('object');
+      res.should.be.json;
+      res.should.have.status(200);
+      res.body.should.deep.equal(updatedData);
+    });
+  });
+});
